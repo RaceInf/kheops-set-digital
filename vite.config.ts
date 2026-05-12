@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 const vitePrerender = require('vite-plugin-prerender');
-import metaData from './src/seo/meta-data';
+import metaData from './src/seo/meta-data.ts';
 import sitemap from 'vite-plugin-sitemap';
 
 // Configuration de base pour Vite
@@ -30,7 +30,7 @@ const config = {
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3005',
         changeOrigin: true,
       },
     }

@@ -98,8 +98,8 @@ cd ..
 sleep 3
 
 # Vérifier si le backend fonctionne
-if curl -s http://localhost:3001/health > /dev/null 2>&1; then
-    print_success "Backend démarré avec succès sur http://localhost:3001"
+if curl -s http://localhost:3005/health > /dev/null 2>&1; then
+    print_success "Backend démarré avec succès sur http://localhost:3005"
 else
     print_error "Le backend n'a pas démarré correctement. Vérifiez backend.log"
     exit 1
@@ -126,7 +126,7 @@ echo ""
 echo "🎉 Système sécurisé KHEOPS SET DIGITAL démarré !"
 echo ""
 echo "📱 Frontend: https://localhost:8081"
-echo "🔒 Backend:  http://localhost:3001"
+echo "🔒 Backend:  http://localhost:3005"
 echo "👤 Admin:    https://localhost:8081/admin"
 echo ""
 echo "🔑 Identifiants par défaut:"

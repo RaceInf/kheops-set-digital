@@ -1,0 +1,427 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles pour les cartes de phase */
+.phase-card {
+    @apply p-6 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg relative overflow-hidden;
+    background: white;
+    border: 1px solid #e2e8f0;
+}
+
+.phase-card::before {
+    content: '';
+    @apply absolute top-0 left-0 w-1 h-full;
+}
+
+.phase-card-1::before { @apply bg-green-500; }
+.phase-card-2::before { @apply bg-blue-500; }
+.phase-card-3::before { @apply bg-purple-600; }
+
+.phase-icon {
+    @apply w-14 h-14 rounded-full flex items-center justify-center mb-5 text-white;
+}
+
+.phase-icon-1 { background-color: #10B981; }
+.phase-icon-2 { background-color: #3B82F6; }
+.phase-icon-3 { background-color: #8B5CF6; }
+
+.phase-title {
+    @apply text-xl font-bold mb-2;
+}
+
+.phase-title-1 { color: #065F46; }
+.phase-title-2 { color: #1E40AF; }
+.phase-title-3 { color: #5B21B6; }
+
+.phase-meta {
+    @apply text-sm text-gray-500 mb-4 font-medium;
+}
+
+.phase-list {
+    @apply space-y-3 mb-6;
+}
+
+.phase-list-item {
+    @apply flex items-start text-gray-700;
+}
+
+.phase-list-icon {
+    @apply h-5 w-5 mr-2.5 mt-0.5 flex-shrink-0;
+}
+
+.phase-list-icon-1 { color: #10B981; }
+.phase-list-icon-2 { color: #3B82F6; }
+.phase-list-icon-3 { color: #8B5CF6; }
+
+.phase-budget {
+    @apply mt-auto pt-4 border-t border-gray-100 text-center;
+}
+
+.budget-text {
+    @apply text-sm font-medium px-3 py-1.5 rounded-full inline-block;
+}
+
+.phase-budget-1 .budget-text {
+    @apply bg-green-50 text-green-700;
+}
+
+.phase-budget-2 .budget-text {
+    @apply bg-blue-50 text-blue-700;
+}
+
+.phase-budget-3 .budget-text {
+    @apply bg-purple-50 text-purple-700;
+}
+
+/* Animation au survol */
+.phase-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .phase-card {
+        @apply p-5;
+    }
+    
+    .phase-icon {
+        @apply w-12 h-12;
+    }
+}
+
+@layer components {
+  /* Timeline Styles */
+  .timeline-progress {
+    @apply relative h-2 bg-gray-200 rounded-full overflow-hidden mb-12;
+  }
+  
+  .timeline-progress-bar {
+    @apply absolute inset-0 flex;
+  }
+  
+  .timeline-progress-segment {
+    @apply h-full;
+  }
+  
+  .timeline-progress-segment-1 {
+    @apply bg-green-500 w-1/4;
+  }
+  
+  .timeline-progress-segment-2 {
+    @apply bg-blue-500 w-1/4;
+  }
+  
+  .timeline-progress-segment-3 {
+    @apply bg-purple-500 w-1/4;
+  }
+  
+  .timeline-progress-segment-4 {
+    @apply bg-gray-200 w-1/4;
+  }
+  
+  .timeline-marker {
+    @apply absolute -bottom-6 w-full flex justify-between px-2;
+  }
+  
+  .timeline-marker span {
+    @apply text-sm text-gray-600;
+  }
+  
+  /* Phase Card Styles */
+  .phase-card {
+    @apply p-5 rounded-lg border flex-1 h-full;
+  }
+  
+  .phase-card-1 {
+    @apply bg-green-50 border-green-100;
+  }
+  
+  .phase-card-2 {
+    @apply bg-blue-50 border-blue-100;
+  }
+  
+  .phase-card-3 {
+    @apply bg-purple-50 border-purple-100;
+  }
+  
+  .phase-icon {
+    @apply w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto;
+  }
+  
+  .phase-icon-1 {
+    @apply bg-green-100 text-green-600;
+  }
+  
+  .phase-icon-2 {
+    @apply bg-blue-100 text-blue-600;
+  }
+  
+  .phase-icon-3 {
+    @apply bg-purple-100 text-purple-600;
+  }
+  
+  .phase-title {
+    @apply font-bold text-center mb-2;
+  }
+  
+  .phase-title-1 {
+    @apply text-green-800;
+  }
+  
+  .phase-title-2 {
+    @apply text-blue-800;
+  }
+  
+  .phase-title-3 {
+    @apply text-purple-800;
+  }
+  
+  .phase-meta {
+    @apply text-sm text-gray-600 text-center;
+  }
+  
+  .phase-list {
+    @apply mt-3 space-y-1 text-sm text-gray-600;
+  }
+  
+  .phase-list-item {
+    @apply flex items-start;
+  }
+  
+  .phase-list-icon {
+    @apply h-4 w-4 mr-1.5 mt-0.5 flex-shrink-0;
+  }
+  
+  .phase-list-icon-1 {
+    @apply text-green-500;
+  }
+  
+  .phase-list-icon-2 {
+    @apply text-blue-500;
+  }
+  
+  .phase-list-icon-3 {
+    @apply text-purple-500;
+  }
+  
+  .phase-budget {
+    @apply mt-3 p-2 bg-white rounded border text-center;
+  }
+  
+  .phase-budget-1 {
+    @apply border-green-100 text-green-700;
+  }
+  
+  .phase-budget-2 {
+    @apply border-blue-100 text-blue-700;
+  }
+  
+  .phase-budget-3 {
+    @apply border-purple-100 text-purple-700;
+  }
+  
+  .budget-text {
+    @apply text-xs font-medium;
+  }
+}
+@layer base {
+  h1 { @apply text-4xl md:text-5xl font-bold mb-4; }
+  h2 { @apply text-3xl md:text-4xl font-bold mb-4; }
+  h3 { @apply text-2xl md:text-3xl font-bold mb-4; }
+}
+
+:root {
+  --scroll-thumb: rgb(237, 192, 112);
+  --scroll-thumb-hover: rgb(235, 126, 120);
+  --scroll-progress: 0%;
+}
+
+/* Removed HTML scrollbar definitions */
+
+@layer components {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-kheops-gold to-kheops-salmon;
+  }
+
+  .bg-grid-pattern {
+    background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.1) 1px, transparent 0);
+    background-size: 40px 40px;
+  }
+
+  .container-custom {
+    max-width: 80rem; /* 1280px */
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Animations pour les éléments décoratifs */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Animations pour les boules digitales */
+@keyframes fall {
+  0% {
+    transform: translateY(-100px) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes float-horizontal {
+  0% {
+    transform: translateX(-100px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(100vw + 100px));
+    opacity: 0;
+  }
+}
+
+@keyframes float-vertical {
+  0% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+}
+
+@keyframes orbit {
+  0% {
+    transform: rotate(0deg) translateX(50px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(50px) rotate(-360deg);
+  }
+}
+
+@keyframes zigzag {
+  0%, 100% {
+    transform: translateX(0) translateY(0);
+  }
+  25% {
+    transform: translateX(20px) translateY(-20px);
+  }
+  50% {
+    transform: translateX(-20px) translateY(20px);
+  }
+  75% {
+    transform: translateX(20px) translateY(20px);
+  }
+}
+
+.animate-fall {
+  animation: fall 8s linear infinite;
+}
+
+.animate-float-horizontal {
+  animation: float-horizontal 12s linear infinite;
+}
+
+.animate-float-vertical {
+  animation: float-vertical 10s linear infinite;
+}
+
+.animate-orbit {
+  animation: orbit 15s linear infinite;
+}
+
+.animate-zigzag {
+  animation: zigzag 6s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.animate-blink {
+  animation: blink 1.2s infinite;
+}
+
+/* Utilitaires pour le line-clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transform {
+    transform: none !important;
+  }
+  .transition-all,
+  .transition-transform,
+  .transition-colors {
+    transition: none !important;
+  }
+  
+  .animate-blob {
+    animation: none !important;
+  }
+  
+  .animate-fall,
+  .animate-float-horizontal,
+  .animate-float-vertical,
+  .animate-orbit,
+  .animate-zigzag {
+    animation: none !important;
+  }
+}

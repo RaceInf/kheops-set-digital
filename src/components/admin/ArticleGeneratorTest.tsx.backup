@@ -1,0 +1,3115 @@
+import React, { useState, useEffect } from 'react';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '../ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Sparkles, Save, Loader2, FileText, FileCheck, Archive, Trash2, Edit, Search, Upload, X, Bold, Italic, List, ListOrdered, Heading1, Heading2, Image as ImageIcon, Link, Quote, Undo, Redo, Download, Calendar, Clock, FileDown, FileUp, Moon, Sun, Users, Eye, Target, TrendingUp, BarChart3, Share2, MessageSquare, CheckCircle, AlertCircle, Info, Bell, Plus, Minus, ChevronLeft, ChevronRight, Filter, Zap, TrendingDown, Activity, CalendarDays, Clock3, AlertTriangle, Star, Globe, Search as SearchIcon, BarChart, PieChart, LineChart, CalendarPlus, Play, RotateCcw } from 'lucide-react';
+import { ContentGenerator } from '../../services/contentGenerator';
+import { ImageService } from '../../services/imageService';
+import { toast } from '../../hooks/use-toast';
+import { GeneratedArticle } from '../../types/article';
+import { ImageResult } from '../../types/image';
+import '../../styles/articlePreview.css';
+import { Separator } from '../ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+
+const categories = [
+  'Stratégie de contenu',
+  'Marketing digital',
+  'Rédaction web',
+  'SEO',
+  'Réseaux sociaux',
+  'Email marketing',
+  'Autre'
+] as const;
+
+const wordCountOptions = [
+  { value: 300, label: '300 mots (Court)' },
+  { value: 500, label: '500 mots (Moyen)' },
+  { value: 800, label: '800 mots (Long)' },
+  { value: 1200, label: '1200 mots (Très long)' },
+  { value: 1500, label: '1500 mots (Complet)' },
+  { value: 2000, label: '2000 mots (Expert)' },
+  { value: 2500, label: '2500 mots (Ultra long)' },
+  { value: 3000, label: '3000 mots (Maximal)' }
+] as const;
+
+const languageTones = [
+  { value: 'professional', label: 'Professionnel', description: 'Ton formel et expert' },
+  { value: 'friendly', label: 'Amical', description: 'Ton décontracté et accessible' },
+  { value: 'authoritative', label: 'Autoritaire', description: 'Ton expert et confiant' },
+  { value: 'conversational', label: 'Conversationnel', description: 'Ton naturel et engageant' },
+  { value: 'educational', label: 'Éducatif', description: 'Ton pédagogique et clair' }
+] as const;
+
+const articleTemplates = [
+  { 
+    id: 'list', 
+    name: 'Liste', 
+    description: 'Article sous forme de liste numérotée',
+    structure: [
+      'Introduction engageante',
+      'Liste de points clés',
+      'Conclusion avec call-to-action'
+    ],
+    example: '10 stratégies pour...'
+  },
+  { 
+    id: 'guide', 
+    name: 'Guide complet', 
+    description: 'Guide étape par étape',
+    structure: [
+      'Définition du problème',
+      'Étapes détaillées',
+      'Conseils pratiques',
+      'Conclusion'
+    ],
+    example: 'Guide complet pour...'
+  },
+  { 
+    id: 'case-study', 
+    name: 'Étude de cas', 
+    description: 'Analyse d\'un cas concret',
+    structure: [
+      'Contexte et situation',
+      'Défis rencontrés',
+      'Solutions appliquées',
+      'Résultats obtenus',
+      'Leçons apprises'
+    ],
+    example: 'Comment [entreprise] a...'
+  },
+  { 
+    id: 'how-to', 
+    name: 'Comment faire', 
+    description: 'Tutoriel pratique',
+    structure: [
+      'Prérequis',
+      'Étapes détaillées',
+      'Conseils d\'expert',
+      'Résolution de problèmes'
+    ],
+    example: 'Comment [action] en 5 étapes'
+  },
+  { 
+    id: 'comparison', 
+    name: 'Comparaison', 
+    description: 'Comparaison d\'options',
+    structure: [
+      'Présentation des options',
+      'Critères de comparaison',
+      'Analyse détaillée',
+      'Recommandation'
+    ],
+    example: '[Option A] vs [Option B] : lequel choisir ?'
+  }
+] as const;
+
+type ArticleFormData = {
+  title: string;
+  content: string;
+  category: string;
+  wordCount: number;
+  languageTone: string;
+};
+
+type ArticleStatus = 'draft' | 'published' | 'archived' | 'trash';
+
+interface SavedArticle extends GeneratedArticle {
+  id: string;
+  status: ArticleStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Fonctions d'assistant contextuel
+const generateTitleSuggestions = (topic: string, category: string, tone: string): string[] => {
+  const suggestions: string[] = [];
+  
+  // Titres basés sur le template
+  if (topic.toLowerCase().includes('stratégie') || topic.toLowerCase().includes('strategy')) {
+    suggestions.push(`${topic} : Guide complet pour 2025`);
+    suggestions.push(`Les meilleures stratégies ${topic} pour votre entreprise`);
+    suggestions.push(`${topic} : Comment réussir en 5 étapes`);
+  }
+  
+  if (topic.toLowerCase().includes('marketing')) {
+    suggestions.push(`${topic} : Les tendances à ne pas manquer`);
+    suggestions.push(`Comment optimiser votre ${topic} en 2025`);
+    suggestions.push(`${topic} : Stratégies gagnantes pour les PME`);
+  }
+  
+  if (topic.toLowerCase().includes('seo') || topic.toLowerCase().includes('référencement')) {
+    suggestions.push(`${topic} : Techniques avancées pour 2025`);
+    suggestions.push(`Comment améliorer votre ${topic} en 30 jours`);
+    suggestions.push(`${topic} : Les erreurs à éviter absolument`);
+  }
+  
+  // Titres basés sur le ton
+  if (tone === 'professional') {
+    suggestions.push(`${topic} : Analyse approfondie et recommandations`);
+    suggestions.push(`Stratégies avancées en ${topic} pour les professionnels`);
+  }
+  
+  if (tone === 'friendly') {
+    suggestions.push(`${topic} : Tout ce que vous devez savoir simplement`);
+    suggestions.push(`Découvrez ${topic} en 10 minutes chrono`);
+  }
+  
+  if (tone === 'authoritative') {
+    suggestions.push(`${topic} : L'expertise qui fait la différence`);
+    suggestions.push(`Maîtrisez ${topic} : Les secrets des experts`);
+  }
+  
+  return suggestions.slice(0, 5); // Limiter à 5 suggestions
+};
+
+const generateIntroSuggestions = (title: string, category: string): string[] => {
+  const suggestions: string[] = [];
+  
+  if (category.includes('Marketing')) {
+    suggestions.push(`Dans un monde digital en constante évolution, ${title.toLowerCase()} est devenu essentiel pour toute entreprise qui souhaite se démarquer.`);
+    suggestions.push(`Le ${title.toLowerCase()} représente un enjeu majeur pour les entreprises en 2025. Découvrez pourquoi et comment l'optimiser.`);
+  }
+  
+  if (category.includes('SEO')) {
+    suggestions.push(`Le référencement naturel est la clé de la visibilité en ligne. Voici tout ce que vous devez savoir sur ${title.toLowerCase()}.`);
+    suggestions.push(`Améliorer votre ${title.toLowerCase()} peut transformer votre présence digitale. Voici comment procéder.`);
+  }
+  
+  if (category.includes('Réseaux sociaux')) {
+    suggestions.push(`Les réseaux sociaux sont devenus incontournables. Découvrez comment optimiser votre ${title.toLowerCase()}.`);
+    suggestions.push(`Maîtriser ${title.toLowerCase()} sur les réseaux sociaux peut faire la différence. Voici nos conseils.`);
+  }
+  
+  return suggestions.slice(0, 3);
+};
+
+const generateKeywordSuggestions = (content: string, category: string): string[] => {
+  const words = content.toLowerCase().split(/\s+/);
+  const wordFreq: { [key: string]: number } = {};
+  
+  // Compter les mots de plus de 3 lettres
+  words.forEach(word => {
+    const cleanWord = word.replace(/[^\w]/g, '');
+    if (cleanWord.length > 3) {
+      wordFreq[cleanWord] = (wordFreq[cleanWord] || 0) + 1;
+    }
+  });
+  
+  // Ajouter des mots-clés liés à la catégorie
+  const categoryKeywords: { [key: string]: string[] } = {
+    'Marketing digital': ['marketing', 'digital', 'stratégie', 'campagne', 'conversion'],
+    'SEO': ['seo', 'référencement', 'google', 'mots-clés', 'optimisation'],
+    'Réseaux sociaux': ['réseaux', 'sociaux', 'facebook', 'instagram', 'engagement'],
+    'Email marketing': ['email', 'newsletter', 'automatisation', 'conversion'],
+    'Rédaction web': ['contenu', 'rédaction', 'blog', 'articles', 'seo']
+  };
+  
+  const relevantKeywords = categoryKeywords[category] || [];
+  
+  // Combiner les mots fréquents et les mots-clés de catégorie
+  const sortedWords = Object.entries(wordFreq)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 3)
+    .map(([word]) => word);
+  
+  return [...new Set([...sortedWords, ...relevantKeywords])].slice(0, 8);
+};
+
+export default function ArticleGeneratorTest() {
+  const [formData, setFormData] = useState<ArticleFormData>({
+    title: '',
+    content: '',
+    category: 'Stratégie de contenu',
+    wordCount: 500,
+    languageTone: 'professional'
+  });
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'generation' | 'drafts' | 'scheduled' | 'published' | 'archived' | 'trash'>('generation');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [articles, setArticles] = useState<SavedArticle[]>([]);
+  const [contentGenerator] = useState(() => new ContentGenerator());
+  const [imageService] = useState(() => new ImageService());
+  
+  // États pour la gestion des images
+  const [searchImages, setSearchImages] = useState(false);
+  const [uploadImages, setUploadImages] = useState(false);
+  const [imageQuery, setImageQuery] = useState('');
+  const [searchingImages, setSearchingImages] = useState(false);
+  const [imageResults, setImageResults] = useState<ImageResult[]>([]);
+  const [selectedImages, setSelectedImages] = useState<ImageResult[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+  
+  // États pour l'aperçu et SEO
+  const [showPreview, setShowPreview] = useState(false);
+  const [seoAnalysis, setSeoAnalysis] = useState<{
+    score: number;
+    suggestions: string[];
+    keywords: string[];
+  } | null>(null);
+  
+  // États pour le feedback visuel et la progression
+  const [progress, setProgress] = useState({
+    wordCount: 0,
+    targetWords: 500,
+    seoScore: 0,
+    completion: 0
+  });
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string | null>(null);
+  
+  // États pour l'assistant contextuel
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('list');
+  const [showAssistant, setShowAssistant] = useState(false);
+  const [suggestions, setSuggestions] = useState<Array<{type: string, text: string}>>([]);
+  
+  // États pour les modales et fonctionnalités
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showCompetitorAnalysis, setShowCompetitorAnalysis] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // États pour les concurrents
+  const [competitors, setCompetitors] = useState<Array<{id: string, name: string, url: string}>>([]);
+  const [newCompetitor, setNewCompetitor] = useState({ name: '', url: '' });
+  
+  // États pour les événements du calendrier
+  const [calendarEvents, setCalendarEvents] = useState<Array<{
+    id: string;
+    title: string;
+    date: string;
+    time?: string;
+    type: 'article' | 'review' | 'publish' | 'reminder' | 'generation';
+    status: 'planned' | 'in-progress' | 'completed' | 'overdue' | 'failed';
+    priority: 'low' | 'medium' | 'high';
+    description?: string;
+    result?: GeneratedArticle;
+    // Propriétés spécifiques aux événements de génération
+    category?: string;
+    wordCount?: number;
+    languageTone?: string;
+    templateId?: string;
+  }>>([]);
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    date: new Date().toISOString().split('T')[0],
+    type: 'article' as const,
+    priority: 'medium' as const
+  });
+  
+  // États pour les notifications
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    title: string;
+    message: string;
+    read: boolean;
+    action?: { label: string; onClick: () => void };
+  }>>([]);
+
+  // États pour l'historique et l'exportation
+  const [history, setHistory] = useState<ArticleFormData[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [maxHistorySize] = useState(50);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'html' | 'markdown' | 'txt'>('html');
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+
+  // États pour le mode sombre
+  const [darkMode, setDarkMode] = useState(false);
+
+  // États pour l'optimisation SEO avancée
+  const [advancedSeo, setAdvancedSeo] = useState({
+    metaTitle: '',
+    metaDescription: '',
+    focusKeyword: '',
+    secondaryKeywords: [] as string[],
+    readabilityScore: 0,
+    seoScore: 0,
+    keywordDensity: {} as { [key: string]: number },
+    internalLinks: [] as { url: string; text: string; type: 'internal' | 'external' }[],
+    externalLinks: [] as { url: string; text: string; type: 'internal' | 'external' }[],
+    imageOptimization: [] as { src: string; alt: string; optimized: boolean }[]
+  });
+  const [showAdvancedSeo, setShowAdvancedSeo] = useState(false);
+  const [seoInsights, setSeoInsights] = useState<{
+    title: string;
+    description: string;
+    suggestions: string[];
+    score: number;
+  } | null>(null);
+
+  // États pour la collaboration
+  const [collaborators, setCollaborators] = useState<{
+    id: string;
+    name: string;
+    role: 'editor' | 'reviewer' | 'viewer';
+    email: string;
+    avatar: string;
+  }[]>([]);
+  const [showCollaboration, setShowCollaboration] = useState(false);
+  const [comments, setComments] = useState<{
+    id: string;
+    author: string;
+    content: string;
+    timestamp: string;
+    position: { start: number; end: number } | null;
+  }[]>([]);
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+
+  // États pour l'éditeur WYSIWYG
+  const [showEditor, setShowEditor] = useState(false);
+  const [editorSelection, setEditorSelection] = useState<{ start: number; end: number } | null>(null);
+  const [showImageDialog, setShowImageDialog] = useState(false);
+  const [imageDialogUrl, setImageDialogUrl] = useState('');
+  const [imageDialogAlt, setImageDialogAlt] = useState('');
+
+  // Fonctions utilitaires
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const addCompetitor = () => {
+    if (newCompetitor.name && newCompetitor.url) {
+      setCompetitors(prev => [...prev, { id: Date.now().toString(), ...newCompetitor }]);
+      setNewCompetitor({ name: '', url: '' });
+    }
+  };
+
+  const removeCompetitor = (id: string) => {
+    setCompetitors(prev => prev.filter(c => c.id !== id));
+  };
+
+  const analyzeCompetitors = () => {
+    // Simulation d'analyse
+    setSuccess(`Analyse de ${competitors.length} concurrents terminée`);
+  };
+
+  const addCalendarEvent = () => {
+    if (newEvent.title) {
+      const event = {
+        id: Date.now().toString(),
+        ...newEvent,
+        status: 'planned' as const,
+        description: ''
+      };
+      setCalendarEvents(prev => [...prev, event]);
+      setNewEvent({
+        title: '',
+        date: new Date().toISOString().split('T')[0],
+        type: 'article',
+        priority: 'medium'
+      });
+      setShowAddEvent(false);
+    }
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const clearAllNotifications = () => {
+    setNotifications([]);
+  };
+
+  const getUnreadCount = () => {
+    return notifications.filter(n => !n.read).length;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+  const handleCategoryChange = (value: string) => setFormData(prev => ({ ...prev, category: value }));
+  const handleWordCountChange = (value: string) => setFormData(prev => ({ ...prev, wordCount: parseInt(value) }));
+  const handleLanguageToneChange = (value: string) => setFormData(prev => ({ ...prev, languageTone: value }));
+
+  const handleGenerateArticle = async () => {
+    if (!formData.title.trim()) {
+      setError('Veuillez saisir un titre pour l\'article');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const generatedArticle = await contentGenerator.generateArticle(
+        formData.title, 
+        formData.category, 
+        formData.wordCount, 
+        formData.languageTone,
+        selectedTemplate // Passer le template sélectionné
+      );
+      setFormData(prev => ({ ...prev, content: generatedArticle.content }));
+      setSuccess(`Article généré avec succès ! (${generatedArticle.wordCount} mots, ton ${languageTones.find(t => t.value === formData.languageTone)?.label}, template ${articleTemplates.find(t => t.id === selectedTemplate)?.name})`);
+    } catch (err) {
+      setError('Erreur lors de la génération de l\'article');
+      console.error('Erreur de génération:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveDraft = () => {
+    if (!formData.title.trim() || !formData.content.trim()) {
+      setError('Veuillez saisir un titre et du contenu');
+      return;
+    }
+
+    const newArticle: SavedArticle = {
+      id: Date.now().toString(),
+      title: formData.title,
+      slug: formData.title.toLowerCase().replace(/\s+/g, '-'),
+      excerpt: formData.content.substring(0, 150) + '...',
+      content: formData.content,
+      author: 'KHEOPS SET DIGITAL',
+      category: formData.category,
+      tags: [formData.category],
+      keywords: [formData.category, 'marketing digital'],
+      images: [],
+      seoTitle: formData.title,
+      seoDescription: formData.content.substring(0, 150),
+      publishedAt: new Date().toISOString(),
+      wordCount: getWordCount(formData.content),
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    setArticles(prev => [...prev, newArticle]);
+    setSuccess('Brouillon sauvegardé !');
+    setError(null);
+    
+    // Réinitialiser le formulaire
+    setFormData({
+      title: '',
+      content: '',
+      category: 'Stratégie de contenu',
+      wordCount: 500,
+      languageTone: 'professional'
+    });
+  };
+
+  const updateArticleStatus = (articleId: string, newStatus: ArticleStatus) => {
+    setArticles(prev => prev.map(article => 
+      article.id === articleId 
+        ? { ...article, status: newStatus, updatedAt: new Date().toISOString() }
+        : article
+    ));
+    
+    const statusMessages = {
+      'draft': 'remis en brouillon',
+      'published': 'publié',
+      'archived': 'archivé',
+      'trash': 'déplacé en corbeille'
+    };
+    
+    setSuccess(`Article ${statusMessages[newStatus]} !`);
+  };
+
+  // Mettre en corbeille (au lieu de supprimer définitivement)
+  const deleteArticle = (articleId: string) => {
+    setArticles(prev => prev.map(article => 
+      article.id === articleId 
+        ? { ...article, status: 'trash' as const, updatedAt: new Date().toISOString() }
+        : article
+    ));
+    setSuccess('Article déplacé en corbeille !');
+  };
+
+  // Supprimer définitivement (depuis la corbeille)
+  const permanentlyDeleteArticle = (articleId: string) => {
+    setArticles(prev => prev.filter(article => article.id !== articleId));
+    setSuccess('Article supprimé définitivement !');
+  };
+
+  // Restaurer depuis la corbeille vers un statut spécifique
+  const restoreFromTrash = (articleId: string, targetStatus: 'draft' | 'published') => {
+    setArticles(prev => prev.map(article => 
+      article.id === articleId 
+        ? { ...article, status: targetStatus, updatedAt: new Date().toISOString() }
+        : article
+    ));
+    
+    const statusMessages = {
+      'draft': 'restauré en brouillon',
+      'published': 'restauré en publié'
+    };
+    
+    setSuccess(`Article ${statusMessages[targetStatus]} !`);
+  };
+
+  const emptyTrash = () => {
+    setArticles(prev => prev.filter(article => article.status !== 'trash'));
+    setSuccess('Corbeille vidée !');
+  };
+
+  const getArticlesByStatus = (status: ArticleStatus) => {
+    return articles.filter(article => article.status === status);
+  };
+
+  const getWordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
+  // Fonctions pour la gestion des images
+  const handleSearchImages = async () => {
+    if (!imageQuery.trim()) {
+      setError('Veuillez saisir un terme de recherche');
+      return;
+    }
+
+    setSearchingImages(true);
+    setError(null);
+    
+    try {
+      const results = await imageService.searchImages(imageQuery, { per_page: 12 });
+      setImageResults(results);
+      if (results.length === 0) {
+        setError('Aucune image trouvée pour cette recherche');
+      }
+    } catch (err) {
+      setError('Erreur lors de la recherche d\'images');
+      console.error('Erreur de recherche d\'images:', err);
+    } finally {
+      setSearchingImages(false);
+    }
+  };
+
+  const handleImageSelect = (image: ImageResult) => {
+    if (selectedImages.find(img => img.url === image.url)) {
+      setSelectedImages(prev => prev.filter(img => img.url !== image.url));
+    } else {
+      setSelectedImages(prev => [...prev, image]);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length === 0) {
+      setError('Veuillez sélectionner des fichiers image valides');
+      return;
+    }
+
+    setUploadedFiles(prev => [...prev, ...imageFiles]);
+    
+    // Créer des URLs temporaires pour l'aperçu
+    imageFiles.forEach(file => {
+      const url = URL.createObjectURL(file);
+      setUploadedUrls(prev => [...prev, url]);
+    });
+  };
+
+  const removeUploadedImage = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedUrls(prev => {
+      const newUrls = prev.filter((_, i) => i !== index);
+      // Libérer la mémoire
+      URL.revokeObjectURL(prev[index]);
+      return newUrls;
+    });
+  };
+
+  const insertImagesInContent = () => {
+    const allImages = [
+      ...selectedImages.map(img => ({ url: img.url, alt: img.alt || 'Image' })),
+      ...uploadedUrls.map((url, index) => ({ url, alt: `Image uploadée ${index + 1}` }))
+    ];
+
+    if (allImages.length === 0) {
+      setError('Aucune image sélectionnée');
+      return;
+    }
+
+    const imageHtml = allImages.map(img => 
+      `<img src="${img.url}" alt="${img.alt}" class="w-full h-auto rounded-lg shadow-lg my-4" />`
+    ).join('\n');
+
+    setFormData(prev => ({
+      ...prev,
+      content: prev.content + '\n\n' + imageHtml
+    }));
+
+    setSuccess('Images insérées dans le contenu !');
+    setSelectedImages([]);
+    setUploadedFiles([]);
+    setUploadedUrls([]);
+    setSearchImages(false);
+    setUploadImages(false);
+  };
+
+  // Fonctions avancées pour la gestion des images
+  const addImageCaption = (imageIndex: number, caption: string) => {
+    const allImages = [...selectedImages, ...uploadedUrls.map((url, index) => ({ url, alt: `Image ${index + 1}` }))];
+    if (imageIndex >= allImages.length) return;
+    
+    const image = allImages[imageIndex];
+    const figureHtml = `
+      <figure class="my-6">
+        <img src="${image.url}" alt="${image.alt}" class="w-full h-auto rounded-lg shadow-lg" />
+        <figcaption class="mt-2 text-sm text-gray-600 text-center italic">${caption}</figcaption>
+      </figure>
+    `;
+    
+    replaceSelectedText(figureHtml);
+  };
+
+  const reorderImages = (fromIndex: number, toIndex: number) => {
+    const allImages = [...selectedImages, ...uploadedUrls.map((url, index) => ({ 
+      url, 
+      alt: `Image ${index + 1}`,
+      source: 'upload',
+      thumb: url
+    }))];
+    if (fromIndex >= allImages.length || toIndex >= allImages.length) return;
+    
+    const reorderedImages = [...allImages];
+    const [movedImage] = reorderedImages.splice(fromIndex, 1);
+    reorderedImages.splice(toIndex, 0, movedImage);
+    
+    // Mettre à jour les états
+    const newSelectedImages = reorderedImages.slice(0, selectedImages.length);
+    const newUploadedUrls = reorderedImages.slice(selectedImages.length).map(img => img.url);
+    
+    setSelectedImages(newSelectedImages);
+    setUploadedUrls(newUploadedUrls);
+    setSuccess('Images réorganisées !');
+  };
+
+  const optimizeImageForSEO = (imageIndex: number) => {
+    const allImages = [...selectedImages, ...uploadedUrls.map((url, index) => ({ url, alt: `Image ${index + 1}` }))];
+    if (imageIndex >= allImages.length) return;
+    
+    const image = allImages[imageIndex];
+    const optimizedHtml = `
+      <img 
+        src="${image.url}" 
+        alt="${image.alt}" 
+        title="${image.alt}"
+        loading="lazy"
+        class="w-full h-auto rounded-lg shadow-lg my-4"
+        onerror="this.style.display='none'"
+      />
+    `;
+    
+    replaceSelectedText(optimizedHtml);
+    setSuccess('Image optimisée pour le SEO !');
+  };
+
+  // Fonction pour l'analyse SEO
+  const analyzeSEO = () => {
+    if (!formData.title.trim() || !formData.content.trim()) {
+      setError('Veuillez saisir un titre et du contenu pour l\'analyse SEO');
+      return;
+    }
+
+    const title = formData.title;
+    const content = formData.content;
+    const wordCount = getWordCount(content);
+    
+    let score = 100;
+    const suggestions: string[] = [];
+    const keywords: string[] = [];
+
+    // Analyse du titre
+    if (title.length < 30) {
+      score -= 20;
+      suggestions.push('Le titre est trop court (minimum 30 caractères)');
+    } else if (title.length > 60) {
+      score -= 10;
+      suggestions.push('Le titre est trop long (maximum 60 caractères)');
+    }
+
+    // Analyse du contenu
+    if (wordCount < 300) {
+      score -= 30;
+      suggestions.push('Le contenu est trop court (minimum 300 mots)');
+    } else if (wordCount > 2000) {
+      score -= 10;
+      suggestions.push('Le contenu est très long (considérez le diviser)');
+    }
+
+    // Extraction des mots-clés
+    const words = content.toLowerCase().split(/\s+/);
+    const wordFreq: { [key: string]: number } = {};
+    words.forEach(word => {
+      if (word.length > 3) {
+        wordFreq[word] = (wordFreq[word] || 0) + 1;
+      }
+    });
+
+    const sortedWords = Object.entries(wordFreq)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([word]) => word);
+
+    keywords.push(...sortedWords);
+
+    setSeoAnalysis({ score: Math.max(0, score), suggestions, keywords });
+  };
+
+  // Fonction pour calculer la progression
+  const calculateProgress = () => {
+    const wordCount = getWordCount(formData.content);
+    const targetWords = formData.wordCount;
+    const wordProgress = Math.min((wordCount / targetWords) * 100, 100);
+    
+    // Calcul du score de complétion global
+    let completion = 0;
+    if (formData.title.trim()) completion += 20;
+    if (formData.content.trim()) completion += 40;
+    if (wordCount >= targetWords * 0.8) completion += 20;
+    if (seoAnalysis && seoAnalysis.score >= 70) completion += 20;
+    
+    setProgress({
+      wordCount,
+      targetWords,
+      seoScore: seoAnalysis?.score || 0,
+      completion
+    });
+  };
+
+  // Fonction pour afficher le statut d'autosauvegarde
+  const showAutoSaveStatus = (status: 'saved' | 'saving' | 'error') => {
+    setAutoSaveStatus(status);
+    setTimeout(() => setAutoSaveStatus(null), 3000);
+  };
+
+  // Fonctions pour l'assistant contextuel
+  const generateSuggestions = () => {
+    if (!formData.title.trim()) {
+      setError('Veuillez saisir un titre pour générer des suggestions');
+      return;
+    }
+
+    const titleSuggestions = generateTitleSuggestions(formData.title, formData.category, formData.languageTone);
+    const introSuggestions = generateIntroSuggestions(formData.title, formData.category);
+    const keywordSuggestions = generateKeywordSuggestions(formData.content, formData.category);
+
+    setSuggestions([
+      ...titleSuggestions.map(s => ({ type: 'title', text: s } as {type: string, text: string})),
+      ...introSuggestions.map(s => ({ type: 'intro', text: s } as {type: string, text: string})),
+      ...keywordSuggestions.map(s => ({ type: 'keyword', text: s } as {type: string, text: string}))
+    ]);
+
+    setShowAssistant(true);
+  };
+
+  const applySuggestion = (type: any, suggestion: string) => {
+    switch (type) {
+      case 'title':
+        setFormData(prev => ({ ...prev, title: suggestion }));
+        break;
+      case 'intro':
+        setFormData(prev => ({ ...prev, content: suggestion + '\n\n' + prev.content }));
+        break;
+      case 'keyword':
+        setAdvancedSeo(prev => ({
+        ...prev,
+          secondaryKeywords: [...prev.secondaryKeywords, suggestion]
+        }));
+        break;
+    }
+    setSuccess('Suggestion appliquée !');
+  };
+
+  const applyTemplate = async (templateId: string) => {
+    const template = articleTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    setSelectedTemplate(templateId);
+    
+    // Générer un titre basé sur le template si aucun titre n'est saisi
+    if (!formData.title.trim()) {
+      const templateTitle = `${template.example} ${formData.category.toLowerCase()}`;
+      setFormData(prev => ({ ...prev, title: templateTitle }));
+      setSuccess(`Template "${template.name}" sélectionné ! Titre généré automatiquement. Cliquez sur "Générer l'article" pour créer le contenu.`);
+    } else {
+      setSuccess(`Template "${template.name}" sélectionné ! Cliquez sur "Générer l'article" pour créer le contenu.`);
+    }
+  };
+
+  // Fonctions pour l'éditeur WYSIWYG
+  const getSelectedText = (): string => {
+    const textarea = document.getElementById('content') as HTMLTextAreaElement;
+    if (!textarea) return '';
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    return textarea.value.substring(start, end);
+  };
+
+  const replaceSelectedText = (replacement: string) => {
+    const textarea = document.getElementById('content') as HTMLTextAreaElement;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+    
+    const newContent = before + replacement + after;
+    setFormData(prev => ({ ...prev, content: newContent }));
+    
+    // Restaurer le focus et la sélection
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start, start + replacement.length);
+    }, 0);
+  };
+
+  const applyFormat = (format: 'bold' | 'italic' | 'h1' | 'h2' | 'h3' | 'ul' | 'ol' | 'quote') => {
+    const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    let replacement = '';
+
+    switch (format) {
+      case 'bold':
+        replacement = `<strong>${selectedText}</strong>`;
+        break;
+      case 'italic':
+        replacement = `<em>${selectedText}</em>`;
+        break;
+      case 'h1':
+        replacement = `<h1>${selectedText}</h1>`;
+        break;
+      case 'h2':
+        replacement = `<h2>${selectedText}</h2>`;
+        break;
+      case 'h3':
+        replacement = `<h3>${selectedText}</h3>`;
+        break;
+      case 'ul':
+        replacement = `<ul>\n<li>${selectedText}</li>\n</ul>`;
+        break;
+      case 'ol':
+        replacement = `<ol>\n<li>${selectedText}</li>\n</ol>`;
+        break;
+      case 'quote':
+        replacement = `<blockquote>${selectedText}</blockquote>`;
+        break;
+    }
+
+    const newContent = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+    setFormData(prev => ({ ...prev, content: newContent }));
+    
+    // Mettre à jour la sélection
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start, start + replacement.length);
+    }, 0);
+  };
+
+  const insertImage = () => {
+    if (!imageDialogUrl.trim()) {
+      setError('Veuillez saisir une URL d\'image');
+      return;
+    }
+    
+    const imgHtml = `<img src="${imageDialogUrl}" alt="${imageDialogAlt || 'Image'}" class="w-full h-auto rounded-lg shadow-lg my-4" />`;
+    replaceSelectedText(imgHtml);
+    
+    setShowImageDialog(false);
+    setImageDialogUrl('');
+    setImageDialogAlt('');
+    setSuccess('Image insérée !');
+  };
+
+  const insertLink = () => {
+    const url = prompt('Entrez l\'URL du lien :');
+    if (!url) return;
+    
+    const text = prompt('Entrez le texte du lien :', 'Lien');
+    if (!text) return;
+    
+    const linkHtml = `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    replaceSelectedText(linkHtml);
+  };
+
+  // Fonctions pour l'historique et l'annulation
+  const addToHistory = (newState: ArticleFormData) => {
+    // Supprimer les états après l'index actuel si on fait un undo puis une nouvelle action
+    const newHistory = history.slice(0, historyIndex + 1);
+    
+    // Ajouter le nouvel état
+    newHistory.push(newState);
+    
+    // Limiter la taille de l'historique
+    if (newHistory.length > maxHistorySize) {
+      newHistory.shift();
+    }
+    
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  const undo = () => {
+    if (canUndo) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setFormData(history[newIndex]);
+      setSuccess('Action annulée');
+    }
+  };
+
+  const redo = () => {
+    if (canRedo) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setFormData(history[newIndex]);
+      setSuccess('Action rétablie');
+    }
+  };
+
+  // Fonctions d'exportation
+  const convertHtmlToMarkdown = (html: string): string => {
+    let markdown = html;
+    
+    // Convertir les balises HTML en Markdown
+    markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n');
+    markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n');
+    markdown = markdown.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n');
+    markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+    markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+    markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+    markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+    markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gis, (match, content) => {
+      return content.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n') + '\n';
+    });
+    markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gis, (match, content) => {
+      let counter = 1;
+      return content.replace(/<li[^>]*>(.*?)<\/li>/gi, () => `${counter++}. $1\n`) + '\n';
+    });
+    markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, '> $1\n\n');
+    markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
+    markdown = markdown.replace(/<br\s*\/?>/gi, '\n');
+    markdown = markdown.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
+    markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+    
+    // Nettoyer les balises restantes
+    markdown = markdown.replace(/<[^>]*>/g, '');
+    
+    return markdown.trim();
+  };
+
+  const convertHtmlToText = (html: string): string => {
+    let text = html;
+    
+    // Supprimer toutes les balises HTML
+    text = text.replace(/<[^>]*>/g, '');
+    
+    // Décoder les entités HTML
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    
+    // Nettoyer les espaces multiples
+    text = text.replace(/\s+/g, ' ');
+    
+    return text.trim();
+  };
+
+  const exportArticle = () => {
+    if (!formData.title.trim() || !formData.content.trim()) {
+      setError('Veuillez saisir un titre et du contenu pour exporter');
+      return;
+    }
+
+    let content = '';
+    let filename = '';
+    let mimeType = '';
+
+    switch (exportFormat) {
+      case 'html':
+        content = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${formData.title}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2 { color: #333; }
+        img { max-width: 100%; height: auto; }
+        blockquote { border-left: 4px solid #ccc; padding-left: 20px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>${formData.title}</h1>
+    <p><strong>Catégorie:</strong> ${formData.category}</p>
+    <p><strong>Ton:</strong> ${languageTones.find(t => t.value === formData.languageTone)?.label}</p>
+    <hr>
+    ${formData.content}
+</body>
+</html>`;
+        filename = `${formData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
+        mimeType = 'text/html';
+        break;
+        
+      case 'markdown':
+        content = `# ${formData.title}
+
+**Catégorie:** ${formData.category}  
+**Ton:** ${languageTones.find(t => t.value === formData.languageTone)?.label}
+
+---
+
+${convertHtmlToMarkdown(formData.content)}`;
+        filename = `${formData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+        mimeType = 'text/markdown';
+        break;
+        
+      case 'txt':
+        content = `${formData.title}
+
+Catégorie: ${formData.category}
+Ton: ${languageTones.find(t => t.value === formData.languageTone)?.label}
+
+${convertHtmlToText(formData.content)}`;
+        filename = `${formData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+        mimeType = 'text/plain';
+        break;
+    }
+
+    // Créer et télécharger le fichier
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setShowExportDialog(false);
+    setSuccess(`Article exporté en ${exportFormat.toUpperCase()} !`);
+  };
+
+  // Fonctions de planification
+  const scheduleArticle = () => {
+    if (!formData.title.trim() || !formData.content.trim()) {
+      setError('Veuillez saisir un titre et du contenu pour planifier');
+      return;
+    }
+
+    if (!scheduledDate || !scheduledTime) {
+      setError('Veuillez sélectionner une date et une heure');
+      return;
+    }
+
+    const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
+    const now = new Date();
+
+    if (scheduledDateTime <= now) {
+      setError('La date de publication doit être dans le futur');
+      return;
+    }
+
+    // Sauvegarder la planification dans le localStorage
+    const scheduledArticle = {
+      ...formData,
+      scheduledFor: scheduledDateTime.toISOString(),
+      status: 'scheduled'
+    };
+
+    const scheduledArticles = JSON.parse(localStorage.getItem('scheduledArticles') || '[]');
+    scheduledArticles.push(scheduledArticle);
+    localStorage.setItem('scheduledArticles', JSON.stringify(scheduledArticles));
+
+    setShowScheduleDialog(false);
+    setScheduledDate('');
+    setScheduledTime('');
+    setSuccess(`Article planifié pour le ${scheduledDateTime.toLocaleDateString()} à ${scheduledDateTime.toLocaleTimeString()}`);
+      
+      // Réinitialiser le formulaire
+      setFormData({
+        title: '',
+        content: '',
+      category: 'Stratégie de contenu',
+      wordCount: 500,
+      languageTone: 'professional'
+    });
+  };
+
+  const getScheduledArticles = () => {
+    const scheduledArticles = JSON.parse(localStorage.getItem('scheduledArticles') || '[]');
+    return scheduledArticles.filter((article: any) => {
+      const scheduledDate = new Date(article.scheduledFor);
+      return scheduledDate > new Date();
+    });
+  };
+
+  const cancelScheduledArticle = (index: number) => {
+    const scheduledArticles = JSON.parse(localStorage.getItem('scheduledArticles') || '[]');
+    scheduledArticles.splice(index, 1);
+    localStorage.setItem('scheduledArticles', JSON.stringify(scheduledArticles));
+    setSuccess('Publication planifiée annulée');
+  };
+
+  // Fonctions pour le mode sombre
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    
+    // Appliquer le mode sombre au document
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('darkMode', 'true');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('darkMode', 'false');
+    }
+  };
+
+  // Initialiser le mode sombre au chargement
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    setDarkMode(savedDarkMode);
+    
+    if (savedDarkMode) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  // Autosauvegarde et raccourcis clavier
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + S pour sauvegarder
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (formData.title.trim() && formData.content.trim()) {
+          handleSaveDraft();
+        }
+      }
+      
+      // Ctrl/Cmd + Enter pour générer
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (formData.title.trim()) {
+          handleGenerateArticle();
+        }
+      }
+      
+      // Ctrl/Cmd + Z pour annuler
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      
+      // Ctrl/Cmd + Shift + Z ou Ctrl/Cmd + Y pour rétablir
+      if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && e.key === 'z') || e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+      
+      // Échap pour fermer les sections d'images
+      if (e.key === 'Escape') {
+        setSearchImages(false);
+        setUploadImages(false);
+        setShowPreview(false);
+        setShowExportDialog(false);
+        setShowScheduleDialog(false);
+        setShowImageDialog(false);
+      }
+    };
+
+    // Autosauvegarde toutes les 30 secondes
+    const autoSaveInterval = setInterval(() => {
+      if (formData.title.trim() && formData.content.trim() && !loading) {
+        showAutoSaveStatus('saving');
+        
+        // Sauvegarde silencieuse dans le localStorage
+        const autoSaveData = {
+          title: formData.title,
+          content: formData.content,
+          category: formData.category,
+          wordCount: formData.wordCount,
+          languageTone: formData.languageTone,
+          timestamp: Date.now()
+        };
+        
+        try {
+          localStorage.setItem('articleAutoSave', JSON.stringify(autoSaveData));
+          showAutoSaveStatus('saved');
+          
+          // Ajouter à l'historique
+          addToHistory(formData);
+        } catch (error) {
+          showAutoSaveStatus('error');
+          console.error('Erreur d\'autosauvegarde:', error);
+        }
+      }
+    }, 30000);
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      clearInterval(autoSaveInterval);
+    };
+  }, [formData, loading]);
+
+  // Restaurer l'autosauvegarde au chargement
+  useEffect(() => {
+    const savedData = localStorage.getItem('articleAutoSave');
+    if (savedData) {
+      try {
+        const data = JSON.parse(savedData);
+        const isRecent = Date.now() - data.timestamp < 24 * 60 * 60 * 1000; // 24h
+        
+        if (isRecent && (!formData.title.trim() && !formData.content.trim())) {
+          setFormData({
+            title: data.title || '',
+            content: data.content || '',
+            category: data.category || categories[0],
+            wordCount: data.wordCount || 500,
+            languageTone: data.languageTone || 'professional'
+          });
+          setSuccess('Brouillon automatique restauré');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la restauration de l\'autosauvegarde:', error);
+      }
+    }
+  }, []);
+
+  // Calculer la progression en temps réel
+  useEffect(() => {
+    if (formData.title || formData.content) {
+      calculateProgress();
+    }
+  }, [formData.title, formData.content, formData.wordCount, seoAnalysis]);
+
+  // Fonctions pour l'optimisation SEO avancée
+  const analyzeAdvancedSEO = () => {
+    if (!formData.title.trim() || !formData.content.trim()) {
+      setError('Veuillez saisir un titre et du contenu pour l\'analyse SEO');
+      return;
+    }
+
+    const content = formData.content;
+    const title = formData.title;
+    
+    // Analyse de la densité des mots-clés
+    const words = content.toLowerCase().split(/\s+/);
+    const wordFreq: { [key: string]: number } = {};
+    words.forEach(word => {
+      const cleanWord = word.replace(/[^\w]/g, '');
+      if (cleanWord.length > 2) {
+        wordFreq[cleanWord] = (wordFreq[cleanWord] || 0) + 1;
+      }
+    });
+
+    // Calcul du score de lisibilité (Flesch-Kincaid simplifié)
+    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const syllables = content.toLowerCase().replace(/[^aeiouy]/g, '').length;
+    const readabilityScore = Math.max(0, Math.min(100, 206.835 - (1.015 * (words.length / sentences.length)) - (84.6 * (syllables / words.length))));
+
+    // Analyse des liens
+    const linkRegex = /<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
+    const links: { url: string; text: string; type: 'internal' | 'external' }[] = [];
+    let match;
+    while ((match = linkRegex.exec(content)) !== null) {
+      const url = match[1];
+      const text = match[2];
+      const isInternal = url.startsWith('/') || url.startsWith(window.location.origin);
+      links.push({
+        url,
+        text,
+        type: isInternal ? 'internal' : 'external'
+      });
+    }
+
+    // Analyse des images
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi;
+    const images: { src: string; alt: string; optimized: boolean }[] = [];
+    while ((match = imageRegex.exec(content)) !== null) {
+      const src = match[1];
+      const alt = match[2];
+      images.push({
+        src,
+        alt,
+        optimized: alt.length > 0 && alt.length < 125
+      });
+    }
+
+    // Calcul du score SEO global
+    let seoScore = 0;
+    const suggestions: string[] = [];
+
+    // Titre (25 points)
+    if (title.length >= 30 && title.length <= 60) {
+      seoScore += 25;
+    } else if (title.length > 0) {
+      seoScore += Math.max(0, 25 - Math.abs(title.length - 45) * 2);
+      suggestions.push('Optimisez la longueur du titre (idéalement 30-60 caractères)');
+    }
+
+    // Mots-clés dans le titre (20 points)
+    const titleWords = title.toLowerCase().split(/\s+/);
+    const topKeywords = Object.entries(wordFreq)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3)
+      .map(([word]) => word);
+    
+    const keywordsInTitle = topKeywords.filter(keyword => 
+      titleWords.some(word => word.includes(keyword))
+    ).length;
+    seoScore += (keywordsInTitle / 3) * 20;
+
+    // Lisibilité (20 points)
+    seoScore += (readabilityScore / 100) * 20;
+    if (readabilityScore < 60) {
+      suggestions.push('Améliorez la lisibilité en utilisant des phrases plus courtes');
+    }
+
+    // Liens internes (15 points)
+    const internalLinks = links.filter(link => link.type === 'internal');
+    seoScore += Math.min(15, internalLinks.length * 3);
+    if (internalLinks.length < 3) {
+      suggestions.push('Ajoutez plus de liens internes pour améliorer la navigation');
+    }
+
+    // Images optimisées (10 points)
+    const optimizedImages = images.filter(img => img.optimized);
+    seoScore += (optimizedImages.length / Math.max(1, images.length)) * 10;
+    if (images.length > 0 && optimizedImages.length < images.length) {
+      suggestions.push('Optimisez les attributs alt de vos images');
+    }
+
+    // Longueur du contenu (10 points)
+    const wordCount = words.length;
+    if (wordCount >= 300) {
+      seoScore += 10;
+    } else {
+      seoScore += (wordCount / 300) * 10;
+      suggestions.push('Augmentez la longueur du contenu (minimum 300 mots recommandé)');
+    }
+
+    // Mettre à jour l'état SEO avancé
+    setAdvancedSeo({
+      metaTitle: title,
+      metaDescription: formData.content.substring(0, 160) + '...',
+      focusKeyword: topKeywords[0] || '',
+      secondaryKeywords: topKeywords.slice(1),
+      readabilityScore: Math.round(readabilityScore),
+      seoScore: Math.round(seoScore),
+      keywordDensity: wordFreq,
+      internalLinks: internalLinks,
+      externalLinks: links.filter(link => link.type === 'external'),
+      imageOptimization: images
+    });
+
+    setSeoInsights({
+      title: 'Analyse SEO complète',
+      description: `Score SEO: ${Math.round(seoScore)}/100`,
+      suggestions,
+      score: Math.round(seoScore)
+    });
+
+    setShowAdvancedSeo(true);
+    setSuccess('Analyse SEO avancée terminée !');
+  };
+
+  const optimizeMetaTitle = (keyword: string) => {
+    const optimizedTitle = `${formData.title} - ${keyword}`;
+    setFormData(prev => ({ ...prev, title: optimizedTitle }));
+    setAdvancedSeo(prev => ({ ...prev, metaTitle: optimizedTitle }));
+    setSuccess('Titre optimisé avec le mot-clé principal !');
+  };
+
+  const generateMetaDescription = () => {
+    const description = formData.content
+      .replace(/<[^>]*>/g, '')
+      .substring(0, 150)
+      .trim() + '...';
+    
+    setAdvancedSeo(prev => ({ ...prev, metaDescription: description }));
+    setSuccess('Méta description générée automatiquement !');
+  };
+
+  // Fonctions pour la collaboration
+  const addCollaborator = (name: string, email: string, role: 'editor' | 'reviewer' | 'viewer') => {
+    const newCollaborator = {
+      id: Date.now().toString(),
+      name,
+      email,
+      role,
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+    };
+    
+    setCollaborators(prev => [...prev, newCollaborator]);
+    setSuccess(`Collaborateur ${name} ajouté avec le rôle ${role} !`);
+  };
+
+  const removeCollaborator = (id: string) => {
+    setCollaborators(prev => prev.filter(collab => collab.id !== id));
+    setSuccess('Collaborateur supprimé !');
+  };
+
+  const addComment = () => {
+    if (!newComment.trim()) {
+      setError('Veuillez saisir un commentaire');
+      return;
+    }
+
+    const comment = {
+      id: Date.now().toString(),
+      author: 'Vous',
+      content: newComment,
+      timestamp: new Date().toISOString(),
+      position: editorSelection
+    };
+
+    setComments(prev => [...prev, comment]);
+    setNewComment('');
+    setSuccess('Commentaire ajouté !');
+  };
+
+  const removeComment = (id: string) => {
+    setComments(prev => prev.filter(comment => comment.id !== id));
+    setSuccess('Commentaire supprimé !');
+  };
+
+  const shareArticle = () => {
+    if (!formData.title.trim() || !formData.content.trim()) {
+      setError('Veuillez saisir un titre et du contenu pour partager');
+      return;
+    }
+
+    // Générer un lien de partage (simulation)
+    const shareLink = `${window.location.origin}/share/${Date.now()}`;
+    
+    // Copier le lien dans le presse-papiers
+    navigator.clipboard.writeText(shareLink).then(() => {
+      setSuccess('Lien de partage copié dans le presse-papiers !');
+    }).catch(() => {
+      setError('Impossible de copier le lien');
+    });
+  };
+
+  // Fonctions pour le calendrier éditorial
+  const updateEventStatus = (eventId: string, newStatus: 'planned' | 'in-progress' | 'completed' | 'overdue') => {
+    setCalendarEvents(prev => prev.map(event => 
+      event.id === eventId 
+        ? { ...event, status: newStatus }
+        : event
+    ));
+    setSuccess('Statut de l\'événement mis à jour !');
+  };
+
+  const deleteEvent = (eventId: string) => {
+    setCalendarEvents(prev => prev.filter(event => event.id !== eventId));
+    setSuccess('Événement supprimé !');
+  };
+
+  // Générer du contenu amélioré basé sur l'analyse concurrentielle
+  const generateCompetitiveContentAdvanced = async (content: string, analysis: any): Promise<string> => {
+    let improvedContent = content;
+    
+    // Ajouter des statistiques si le contenu est court
+    if (content.split(' ').length < analysis.targetWordCount) {
+      const statsSection = `
+        <h2>Statistiques et données clés</h2>
+        <p>Selon les dernières études du secteur :</p>
+        <ul>
+          <li><strong>${Math.floor(Math.random() * 50) + 30}%</strong> des entreprises utilisent ${formData.category.toLowerCase()}</li>
+          <li><strong>${Math.floor(Math.random() * 40) + 20}%</strong> d'amélioration des performances en moyenne</li>
+          <li><strong>${Math.floor(Math.random() * 30) + 10}%</strong> de réduction des coûts opérationnels</li>
+        </ul>
+      `;
+      
+      const insertPoint = improvedContent.lastIndexOf('</p>') + 4;
+      improvedContent = improvedContent.slice(0, insertPoint) + statsSection + improvedContent.slice(insertPoint);
+    }
+    
+    // Ajouter des témoignages si manquants
+    if (!content.includes('témoignage') && !content.includes('client')) {
+      const testimonialSection = `
+        <h2>Témoignages clients</h2>
+        <blockquote>
+          <p>"Grâce à cette approche, nous avons doublé notre ROI en seulement 6 mois."</p>
+          <cite>- Directeur Marketing, Entreprise Tech</cite>
+        </blockquote>
+      `;
+      
+      const insertPoint = improvedContent.lastIndexOf('</p>') + 4;
+      improvedContent = improvedContent.slice(0, insertPoint) + testimonialSection + improvedContent.slice(insertPoint);
+    }
+    
+    // Améliorer la structure SEO
+    const h2Count = (content.match(/<h2>/g) || []).length;
+    if (h2Count < 4) {
+      const additionalSections: string[] = [
+        '<h2>FAQ - Questions fréquentes</h2><p>Réponses aux questions les plus courantes sur ce sujet...</p>',
+        '<h2>Ressources complémentaires</h2><p>Liens utiles et outils pour approfondir vos connaissances...</p>'
+      ];
+      
+      additionalSections.forEach(section => {
+        const insertPoint = improvedContent.lastIndexOf('</p>') + 4;
+        improvedContent = improvedContent.slice(0, insertPoint) + section + improvedContent.slice(insertPoint);
+      });
+    }
+    
+    return improvedContent;
+  };
+
+  // Fonctions pour les notifications
+  const addNotification = (type: 'info' | 'success' | 'warning' | 'error', title: string, message: string, action?: { label: string; onClick: () => void }) => {
+    const notification = {
+      id: Date.now().toString(),
+      type,
+      title,
+      message,
+      timestamp: new Date().toISOString(),
+      read: false,
+      action
+    };
+
+    setNotifications(prev => [notification, ...prev]);
+  };
+
+  // Notifications automatiques
+  useEffect(() => {
+    if (formData.title && formData.content && getWordCount(formData.content) > 500) {
+      addNotification('success', 'Article en cours', 'Votre article dépasse 500 mots !', {
+        label: 'Voir l\'article',
+        onClick: () => setShowPreview(true)
+      });
+    }
+  }, [formData.content]);
+
+  useEffect(() => {
+    const overdueEvents = calendarEvents.filter(event => {
+      const eventDate = new Date(event.date);
+      return eventDate < new Date() && event.status !== 'completed';
+    });
+
+    if (overdueEvents.length > 0) {
+      addNotification('warning', 'Événements en retard', `${overdueEvents.length} événement(s) en retard`, {
+        label: 'Voir le calendrier',
+        onClick: () => setShowCalendar(true)
+      });
+    }
+  }, [calendarEvents]);
+
+  // Assistant contextuel pour améliorer le contenu
+  const contextualAssistant = async () => {
+    if (!formData.content.trim()) {
+      setError('Aucun contenu à analyser');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Analyser le contenu actuel
+      const wordCount = formData.content.split(' ').length;
+      const hasImages = formData.content.includes('<img');
+      const hasLinks = formData.content.includes('<a href');
+      const hasLists = formData.content.includes('<ul>') || formData.content.includes('<ol>');
+      
+      // Générer des suggestions d'amélioration
+      const suggestions: string[] = [];
+      
+      if (wordCount < formData.wordCount * 0.8) {
+        suggestions.push(`📝 Le contenu fait ${wordCount} mots, soit ${Math.round((wordCount/formData.wordCount)*100)}% de l'objectif. Considérez ajouter plus de détails.`);
+      }
+      
+      if (!hasImages) {
+        suggestions.push('🖼️ Aucune image détectée. Ajoutez des images pour améliorer l\'engagement.');
+      }
+      
+      if (!hasLinks) {
+        suggestions.push('🔗 Aucun lien détecté. Ajoutez des liens internes et externes pour le SEO.');
+      }
+      
+      if (!hasLists) {
+        suggestions.push('📋 Aucune liste détectée. Les listes améliorent la lisibilité.');
+      }
+      
+      // Vérifier la structure SEO
+      const hasH2 = (formData.content.match(/<h2>/g) || []).length;
+      const hasH3 = (formData.content.match(/<h3>/g) || []).length;
+      
+      if (hasH2 < 3) {
+        suggestions.push('🏗️ Peu de sous-titres H2 détectés. Améliorez la structure avec plus de sections.');
+      }
+      
+      if (hasH3 < 2) {
+        suggestions.push('📑 Ajoutez des sous-sections H3 pour une meilleure hiérarchie.');
+      }
+      
+      // Proposer des améliorations automatiques
+      if (suggestions.length > 0) {
+        const improvedContent = await generateImprovements(formData.content, suggestions);
+        setFormData(prev => ({ ...prev, content: improvedContent }));
+        setSuccess(`Assistant contextuel : ${suggestions.length} améliorations appliquées automatiquement !`);
+      } else {
+        setSuccess('✅ Contenu déjà optimisé ! Aucune amélioration nécessaire.');
+      }
+      
+    } catch (err) {
+      setError('Erreur lors de l\'analyse contextuelle');
+      console.error('Erreur assistant:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Générer des améliorations automatiques
+  const generateImprovements = async (content: string, suggestions: string[]): Promise<string> => {
+    let improvedContent = content;
+    
+    // Ajouter des liens si manquants
+    if (!content.includes('<a href')) {
+      const linkPattern = /(marketing digital|stratégie|performance|optimisation)/gi;
+      improvedContent = improvedContent.replace(linkPattern, (match) => {
+        return `<a href="/services/${match.toLowerCase().replace(/\s+/g, '-')}" target="_blank">${match}</a>`;
+      });
+    }
+    
+    // Améliorer la structure si nécessaire
+    if ((content.match(/<h2>/g) || []).length < 3) {
+      const sections = ['Introduction', 'Développement', 'Conclusion'];
+      sections.forEach((section, index) => {
+        if (!content.includes(`<h2>${section}`)) {
+          const insertPoint = content.indexOf('</p>') + 4;
+          improvedContent = improvedContent.slice(0, insertPoint) + 
+            `\n<h2>${section}</h2>\n<p>Contenu de la section ${section.toLowerCase()}...</p>` + 
+            improvedContent.slice(insertPoint);
+        }
+      });
+    }
+    
+    // Ajouter des listes si manquantes
+    if (!content.includes('<ul>') && !content.includes('<ol>')) {
+      const listPattern = /(Conseils|Étapes|Points clés|Avantages)/gi;
+      improvedContent = improvedContent.replace(listPattern, (match) => {
+        return `${match} :\n<ul>\n<li>Premier point important</li>\n<li>Deuxième point essentiel</li>\n<li>Troisième recommandation</li>\n</ul>`;
+      });
+    }
+    
+    return improvedContent;
+  };
+
+  // Planifier la génération d'articles dans le calendrier
+  const scheduleArticleGeneration = () => {
+    if (!formData.title.trim()) {
+      setError('Veuillez saisir un titre pour planifier la génération');
+      return;
+    }
+    
+    // Initialiser la date et l'heure par défaut (aujourd'hui à 09:00)
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    setScheduledDate(tomorrow.toISOString().split('T')[0]);
+    setScheduledTime('09:00');
+    setShowScheduleDialog(true);
+  };
+
+  // Confirmer la planification avec la date/heure choisie
+  const confirmScheduleGeneration = () => {
+    if (!scheduledDate || !scheduledTime) {
+      setError('Veuillez sélectionner une date et une heure');
+      return;
+    }
+    
+    const newEvent = {
+      id: Date.now().toString(),
+      title: `Générer : ${formData.title}`,
+      date: scheduledDate,
+      time: scheduledTime,
+      type: 'generation' as const,
+      category: formData.category,
+      wordCount: formData.wordCount,
+      languageTone: formData.languageTone,
+      templateId: selectedTemplate,
+      status: 'planned' as const,
+      priority: 'medium' as const,
+      description: `Génération automatique d'article sur ${formData.title}`
+    };
+
+    setCalendarEvents(prev => [...prev, newEvent]);
+    setShowScheduleDialog(false);
+    setSuccess(`Génération d'article planifiée pour le ${new Date(scheduledDate).toLocaleDateString('fr-FR')} à ${scheduledTime}`);
+  };
+
+  // Exécuter les générations planifiées
+  const executeScheduledGenerations = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const scheduledEvents = calendarEvents.filter(event => 
+      event.type === 'generation' && 
+      event.date === today && 
+      event.status === 'planned'
+    );
+
+    if (scheduledEvents.length === 0) {
+      setSuccess('Aucune génération planifiée pour aujourd\'hui');
+      return;
+    }
+
+    setLoading(true);
+    let successCount = 0;
+
+    for (const event of scheduledEvents) {
+      try {
+        // Vérifier que l'événement a toutes les propriétés nécessaires pour la génération
+        if (event.category && event.wordCount && event.languageTone && event.templateId) {
+          const generatedArticle = await contentGenerator.generateArticle(
+            event.title.replace('Générer : ', ''),
+            event.category,
+            event.wordCount,
+            event.languageTone,
+            event.templateId
+          );
+
+          // Mettre à jour le statut de l'événement
+          setCalendarEvents(prev => prev.map(e => 
+            e.id === event.id ? { ...e, status: 'completed' as const, result: generatedArticle } : e
+          ));
+
+          successCount++;
+        } else {
+          console.warn(`Événement ${event.id} manque de propriétés nécessaires pour la génération`);
+          setCalendarEvents(prev => prev.map(e => 
+            e.id === event.id ? { ...e, status: 'failed' as const } : e
+          ));
+        }
+      } catch (err) {
+        console.error(`Erreur lors de la génération planifiée ${event.title}:`, err);
+        setCalendarEvents(prev => prev.map(e => 
+          e.id === event.id ? { ...e, status: 'failed' as const } : e
+        ));
+      }
+    }
+
+    setLoading(false);
+    setSuccess(`${successCount}/${scheduledEvents.length} générations planifiées exécutées avec succès !`);
+  };
+
+  // Analyse concurrentielle
+  const analyzeCompetition = async () => {
+    if (!formData.title.trim()) {
+      setError('Veuillez saisir un titre pour analyser la concurrence');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Simuler une analyse concurrentielle basée sur le titre et la catégorie
+      const competitors = [
+        {
+          name: 'Concurrent A',
+          url: 'https://concurrent-a.com',
+          title: `${formData.title} - Guide complet`,
+          wordCount: Math.floor(Math.random() * 1000) + 500,
+          seoScore: Math.floor(Math.random() * 30) + 70,
+          backlinks: Math.floor(Math.random() * 1000) + 100,
+          socialShares: Math.floor(Math.random() * 500) + 50
+        },
+        {
+          name: 'Concurrent B',
+          url: 'https://concurrent-b.com',
+          title: `Comment réussir en ${formData.category}`,
+          wordCount: Math.floor(Math.random() * 1000) + 500,
+          seoScore: Math.floor(Math.random() * 30) + 70,
+          backlinks: Math.floor(Math.random() * 1000) + 100,
+          socialShares: Math.floor(Math.random() * 500) + 50
+        },
+        {
+          name: 'Concurrent C',
+          url: 'https://concurrent-c.com',
+          title: `${formData.title} : Stratégies avancées`,
+          wordCount: Math.floor(Math.random() * 1000) + 500,
+          seoScore: Math.floor(Math.random() * 30) + 70,
+          backlinks: Math.floor(Math.random() * 1000) + 100,
+          socialShares: Math.floor(Math.random() * 500) + 50
+        }
+      ];
+
+      // Analyser les opportunités
+      const avgWordCount = competitors.reduce((sum, c) => sum + c.wordCount, 0) / competitors.length;
+      const avgSeoScore = competitors.reduce((sum, c) => sum + c.seoScore, 0) / competitors.length;
+      
+      const opportunities: string[] = [];
+      if (formData.wordCount < avgWordCount) {
+        opportunities.push(`📝 Créer un contenu plus long (${Math.round(avgWordCount)} mots en moyenne chez les concurrents)`);
+      }
+      
+      if (avgSeoScore < 85) {
+        opportunities.push('🎯 Opportunité SEO : les concurrents ont un score moyen de ' + Math.round(avgSeoScore));
+      }
+      
+      // Générer des recommandations basées sur l'analyse
+      const recommendations = [
+        '🔍 Inclure des mots-clés long-tail spécifiques',
+        '📊 Ajouter des données et statistiques récentes',
+        '🎥 Intégrer des éléments multimédias (vidéos, infographies)',
+        '💬 Inclure des témoignages clients ou études de cas',
+        '📱 Optimiser pour mobile et expérience utilisateur'
+      ];
+
+      // Créer un rapport d'analyse
+      const analysisReport = {
+        competitors,
+        opportunities,
+        recommendations,
+        targetWordCount: Math.max(formData.wordCount, Math.round(avgWordCount * 1.1)),
+        targetSeoScore: Math.max(85, Math.round(avgSeoScore * 1.05))
+      };
+
+      // Afficher le rapport
+      setSuccess(`Analyse concurrentielle terminée ! ${competitors.length} concurrents analysés, ${opportunities.length} opportunités identifiées.`);
+      
+      // Mettre à jour le contenu avec des améliorations basées sur l'analyse
+      if (opportunities.length > 0) {
+        const improvedContent = await generateCompetitiveContentAdvanced(formData.content, analysisReport);
+        setFormData(prev => ({ ...prev, content: improvedContent }));
+        setSuccess(prev => prev + ' Contenu amélioré selon l\'analyse concurrentielle.');
+      }
+
+    } catch (err) {
+      setError('Erreur lors de l\'analyse concurrentielle');
+      console.error('Erreur analyse:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Navigation du mois (remise en place)
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      if (direction === 'prev') {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else {
+        newDate.setMonth(newDate.getMonth() + 1);
+      }
+      return newDate;
+    });
+  };
+
+  // Récupérer les événements d'un jour (remise en place)
+  const getEventsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return calendarEvents.filter(event => event.date === dateStr);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header responsive */}
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white truncate">
+                Générateur d'Articles
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
+                Créez, optimisez et gérez vos articles
+              </p>
+            </div>
+            
+            {/* Boutons d'action principaux - responsive */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCalendar(true)}
+                className="h-9 w-9 p-0 relative flex-shrink-0"
+                title="Calendrier"
+              >
+                <CalendarDays className="h-4 w-4" />
+                {getScheduledArticles().filter(e => e.status === 'overdue').length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full"></span>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCompetitorAnalysis(true)}
+                className="h-9 w-9 p-0 flex-shrink-0"
+                title="Concurrence"
+              >
+                <BarChart className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowNotifications(true)}
+                className="h-9 w-9 p-0 relative flex-shrink-0"
+                title="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                {getUnreadCount() > 0 && (
+                  <span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {getUnreadCount() > 9 ? '9+' : getUnreadCount()}
+                  </span>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleDarkMode}
+                className="h-9 w-9 p-0 flex-shrink-0"
+                title={darkMode ? 'Mode clair' : 'Mode sombre'}
+              >
+                {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation par onglets */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-8 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('generation')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'generation'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <Sparkles className="inline mr-2 h-4 w-4" />
+              Génération
+            </button>
+            <button
+              onClick={() => setActiveTab('drafts')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'drafts'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <FileText className="inline mr-2 h-4 w-4" />
+              Brouillons ({getArticlesByStatus('draft').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('scheduled')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'scheduled'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <CalendarPlus className="inline mr-2 h-4 w-4" />
+              Planifiés ({getScheduledArticles().length})
+            </button>
+            <button
+              onClick={() => setActiveTab('published')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'published'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <CheckCircle className="inline mr-2 h-4 w-4" />
+              Publiés ({getArticlesByStatus('published').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('archived')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'archived'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <Archive className="inline mr-2 h-4 w-4" />
+              Archivés ({getArticlesByStatus('archived').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('trash')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'trash'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <Trash2 className="inline mr-2 h-4 w-4" />
+              Corbeille ({getArticlesByStatus('trash').length})
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Contenu principal */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {activeTab === 'generation' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Panneau de configuration */}
+            <div className="lg:col-span-1">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                    Configuration
+                  </h2>
+                  
+                  {/* Formulaire */}
+                  <div className="space-y-4">
+                    {/* Titre */}
+                    <div>
+                      <Label htmlFor="title" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Titre de l'article
+                      </Label>
+              <Input
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                        placeholder="Entrez le titre de votre article..."
+                        className="mt-1"
+              />
+            </div>
+
+                    {/* Catégorie */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Catégorie
+                      </Label>
+                      <Select value={formData.category} onValueChange={handleCategoryChange}>
+                        <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionnez une catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+                    {/* Nombre de mots */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Nombre de mots
+                      </Label>
+                      <Select value={formData.wordCount.toString()} onValueChange={handleWordCountChange}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[500, 1000, 1500, 2000, 2500, 3000].map((count) => (
+                            <SelectItem key={count} value={count.toString()}>
+                              {count} mots
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+            </div>
+
+                    {/* Ton du langage */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Ton du langage
+                      </Label>
+                      <Select value={formData.languageTone} onValueChange={handleLanguageToneChange}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {languageTones.map((tone) => (
+                            <SelectItem key={tone.value} value={tone.value}>
+                              {tone.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+            </div>
+
+                    {/* Templates */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Template
+                      </Label>
+                      <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {articleTemplates.slice(0, 4).map((template) => (
+            <Button 
+                            key={template.id}
+                            variant={selectedTemplate === template.id ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => applyTemplate(template.id)}
+                            className="text-xs h-auto py-2 px-3"
+                          >
+                            {template.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Boutons d'action principaux */}
+                    <div className="space-y-2 pt-4">
+                      <Button
+                        onClick={handleGenerateArticle}
+                        disabled={loading || !formData.title.trim()}
+                        className="w-full"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Génération...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                            Générer l'article
+                </>
+              )}
+            </Button>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+              <Button 
+                variant="outline"
+                onClick={handleSaveDraft}
+                          disabled={!formData.content.trim()}
+                          size="sm"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                          Sauvegarder
+              </Button>
+              <Button 
+                          variant="outline"
+                          onClick={exportArticle}
+                          disabled={!formData.content.trim()}
+                          size="sm"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Exporter
+              </Button>
+            </div>
+                </div>
+                </div>
+              </div>
+                </div>
+
+              {/* Barre d'outils d'édition */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mt-4">
+                <div className="p-4">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                    Outils d'édition
+                  </h3>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => applyFormat('bold')}
+                      className="h-8 w-8 p-0"
+                      title="Gras"
+                    >
+                      <Bold className="h-3 w-3" />
+                              </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => applyFormat('italic')}
+                      className="h-8 w-8 p-0"
+                      title="Italique"
+                    >
+                      <Italic className="h-3 w-3" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                      onClick={() => applyFormat('h2')}
+                      className="h-8 w-8 p-0"
+                      title="Titre H2"
+                    >
+                      H2
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => applyFormat('h3')}
+                      className="h-8 w-8 p-0"
+                      title="Titre H3"
+                    >
+                      <Heading2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => applyFormat('ul')}
+                      className="h-8 w-8 p-0"
+                      title="Liste"
+                    >
+                      <List className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => applyFormat('quote')}
+                      className="h-8 w-8 p-0"
+                      title="Citation"
+                    >
+                      <Quote className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowImageDialog(true)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={insertLink}
+                      className="h-8 w-8 p-0"
+                      title="Lien"
+                    >
+                      <Link className="h-3 w-3" />
+                              </Button>
+                            </div>
+                  
+                  {/* Outils avancés */}
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={contextualAssistant}
+                        disabled={loading}
+                        className="text-xs"
+                      >
+                        <Sparkles className="mr-1 h-3 w-3" />
+                        Assistant
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={analyzeAdvancedSEO}
+                        disabled={loading}
+                        className="text-xs"
+                      >
+                        <Search className="mr-1 h-3 w-3" />
+                        SEO
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={scheduleArticleGeneration}
+                        disabled={!formData.title.trim()}
+                        className="text-xs"
+                      >
+                        <CalendarPlus className="mr-1 h-3 w-3" />
+                        Planifier
+                      </Button>
+                          </div>
+                </div>
+        </div>
+                  </div>
+                  </div>
+
+            {/* Zone d'édition principale */}
+            <div className="lg:col-span-2">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
+                      Éditeur d'article
+                    </h2>
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <span>{getWordCount(formData.content)} mots</span>
+                      <span>•</span>
+                      <span>{formData.content.length} caractères</span>
+                    </div>
+                  </div>
+
+                  {/* Zone de texte */}
+                  <div className="relative">
+                    <Textarea
+                      value={formData.content}
+                      onChange={handleInputChange}
+                      placeholder="Votre contenu apparaîtra ici après génération..."
+                      className="min-h-[400px] sm:min-h-[500px] lg:min-h-[600px] resize-none"
+                      name="content"
+                    />
+                    
+                    {/* Indicateur de sauvegarde */}
+                    {autoSaveStatus && (
+                      <div className="absolute top-2 right-2">
+                        <div className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded text-xs">
+                          {autoSaveStatus}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Suggestions d'amélioration */}
+                  {suggestions.length > 0 && (
+                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
+                        Suggestions d'amélioration
+                      </h4>
+                      <div className="space-y-1">
+                        {suggestions.map((suggestion, index) => (
+                    <Button
+                            key={index}
+                      variant="outline"
+                      size="sm"
+                            onClick={() => applySuggestion(suggestion.type as any, suggestion.text)}
+                            className="w-full text-left justify-start"
+                    >
+                            {suggestion.text}
+                    </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Résultats de l'analyse SEO avancée */}
+                  {showAdvancedSeo && seoInsights && (
+                    <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-green-900 dark:text-green-200">
+                          📊 {seoInsights.title}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <div className="text-2xl font-bold text-green-700 dark:text-green-300">
+                            {seoInsights.score}/100
+                          </div>
+                          <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full ${
+                                seoInsights.score >= 80 ? 'bg-green-500' :
+                                seoInsights.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${seoInsights.score}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <p className="text-sm text-green-800 dark:text-green-300 mb-3">
+                        {seoInsights.description}
+                      </p>
+
+                      {/* Détails SEO */}
+                      {advancedSeo && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600 dark:text-gray-400">Lisibilité :</span>
+                              <span className="font-medium">{advancedSeo.readabilityScore}/100</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600 dark:text-gray-400">Mots-clés principaux :</span>
+                              <span className="font-medium">{advancedSeo.focusKeyword || 'Aucun'}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600 dark:text-gray-400">Liens internes :</span>
+                              <span className="font-medium">{advancedSeo.internalLinks?.length || 0}</span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600 dark:text-gray-400">Mots-clés secondaires :</span>
+                              <span className="font-medium">{advancedSeo.secondaryKeywords?.length || 0}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600 dark:text-gray-400">Liens externes :</span>
+                              <span className="font-medium">{advancedSeo.externalLinks?.length || 0}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600 dark:text-gray-400">Images optimisées :</span>
+                              <span className="font-medium">{advancedSeo.imageOptimization?.filter(img => img.optimized).length || 0}/{advancedSeo.imageOptimization?.length || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recommandations */}
+                      {seoInsights.suggestions && seoInsights.suggestions.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-sm font-medium text-green-900 dark:text-green-200 mb-2">
+                            🔧 Recommandations d'amélioration
+                          </h5>
+                          <ul className="space-y-1">
+                            {seoInsights.suggestions.map((suggestion, index) => (
+                              <li key={index} className="text-sm text-green-800 dark:text-green-300 flex items-start gap-2">
+                                <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
+                                {suggestion}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Outils d'optimisation rapide */}
+                      <div className="flex flex-wrap gap-2">
+                        {advancedSeo?.focusKeyword && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => optimizeMetaTitle(advancedSeo.focusKeyword)}
+                            className="text-xs"
+                          >
+                            <Target className="mr-1 h-3 w-3" />
+                            Optimiser le titre
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={generateMetaDescription}
+                          className="text-xs"
+                        >
+                          <FileText className="mr-1 h-3 w-3" />
+                          Générer méta description
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAdvancedSeo(false)}
+                          className="text-xs"
+                        >
+                          <X className="mr-1 h-3 w-3" />
+                          Fermer
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Onglet Brouillons */}
+        {activeTab === 'drafts' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Brouillons ({getArticlesByStatus('draft').length})
+              </h2>
+              <div className="space-y-4">
+                {getArticlesByStatus('draft').map((article) => (
+                  <div key={article.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 dark:text-white">{article.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {article.category} • {getWordCount(article.content)} mots • {new Date(article.createdAt).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setFormData({ title: article.title, content: article.content, category: article.category, wordCount: article.wordCount, languageTone: (article as any).languageTone || 'professional' })}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => updateArticleStatus(article.id, 'published')}>
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => deleteArticle(article.id)} title="Mettre en corbeille">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                ))}
+                {getArticlesByStatus('draft').length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="mx-auto h-12 w-12 mb-4" />
+                    <p>Aucun brouillon pour le moment</p>
+                    </div>
+                )}
+                  </div>
+                </div>
+          </div>
+        )}
+
+        {/* Onglet Planifiés */}
+        {activeTab === 'scheduled' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Articles planifiés ({getScheduledArticles().length})
+              </h2>
+              <div className="space-y-4">
+                {getScheduledArticles().map((article, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 dark:text-white">{article.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Planifié pour le {new Date(article.scheduledDate).toLocaleDateString('fr-FR')} à {new Date(article.scheduledDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                  </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => cancelScheduledArticle(index)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                  </div>
+                </div>
+                ))}
+                {getScheduledArticles().length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <CalendarPlus className="mx-auto h-12 w-12 mb-4" />
+                    <p>Aucun article planifié</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Onglet Publiés */}
+        {activeTab === 'published' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Articles publiés ({getArticlesByStatus('published').length})
+              </h2>
+              <div className="space-y-4">
+                {getArticlesByStatus('published').map((article) => (
+                  <div key={article.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 dark:text-white">{article.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {article.category} • {getWordCount(article.content)} mots • Publié le {new Date(article.updatedAt).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => updateArticleStatus(article.id, 'archived')}>
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => exportArticle()}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {getArticlesByStatus('published').length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle className="mx-auto h-12 w-12 mb-4" />
+                    <p>Aucun article publié</p>
+                </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Onglet Archivés */}
+        {activeTab === 'archived' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Articles archivés ({getArticlesByStatus('archived').length})
+              </h2>
+        <div className="space-y-4">
+                {getArticlesByStatus('archived').map((article) => (
+                  <div key={article.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 dark:text-white">{article.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {article.category} • {getWordCount(article.content)} mots • Archivé le {new Date(article.updatedAt).toLocaleDateString('fr-FR')}
+                      </p>
+                        </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => updateArticleStatus(article.id, 'published')}>
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => updateArticleStatus(article.id, 'trash')}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                        </div>
+                      </div>
+                ))}
+                {getArticlesByStatus('archived').length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Archive className="mx-auto h-12 w-12 mb-4" />
+                    <p>Aucun article archivé</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Onglet Corbeille */}
+        {activeTab === 'trash' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Corbeille ({getArticlesByStatus('trash').length})
+                </h2>
+                {getArticlesByStatus('trash').length > 0 && (
+                  <Button variant="outline" size="sm" onClick={emptyTrash}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Vider la corbeille
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-4">
+                {getArticlesByStatus('trash').map((article) => (
+                  <div key={article.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 dark:text-white">{article.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {article.category} • {getWordCount(article.content)} mots • Supprimé le {new Date(article.updatedAt).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => updateArticleStatus(article.id, 'draft')} title="Restaurer en brouillon">
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => updateArticleStatus(article.id, 'published')} title="Restaurer en publié">
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => permanentlyDeleteArticle(article.id)} title="Supprimer définitivement">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {getArticlesByStatus('trash').length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Trash2 className="mx-auto h-12 w-12 mb-4" />
+                    <p>Aucun article dans la corbeille</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modales responsive */}
+      
+      {/* Modal Calendrier */}
+      {showCalendar && (
+        <Dialog open={showCalendar} onOpenChange={setShowCalendar}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg sm:text-xl">Calendrier éditorial</DialogTitle>
+              <DialogDescription>
+                Gérez votre planning de publication d'articles
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Navigation du mois */}
+              <div className="flex items-center justify-between">
+                        <Button
+                  variant="outline"
+                          size="sm"
+                  onClick={() => navigateMonth('prev')}
+                        >
+                  <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                <h3 className="text-lg font-semibold">
+                  {currentMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                </h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                  onClick={() => navigateMonth('next')}
+                        >
+                  <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+              {/* Grille du calendrier */}
+              <div className="grid grid-cols-7 gap-1 text-xs sm:text-sm">
+                {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
+                  <div key={day} className="p-2 text-center font-medium text-gray-500">
+                    {day}
+                    </div>
+                ))}
+                
+                {Array.from({ length: getDaysInMonth(currentMonth) }, (_, i) => {
+                  const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i + 1);
+                  const dayEvents = getEventsForDate(date);
+                  
+                  return (
+                    <div
+                      key={i}
+                      className={`p-2 min-h-[60px] sm:min-h-[80px] border border-gray-200 dark:border-gray-700 ${
+                        dayEvents.length > 0 ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                      }`}
+                    >
+                      <div className="text-sm font-medium">{i + 1}</div>
+                      {dayEvents.slice(0, 2).map(event => (
+                        <div
+                          key={event.id}
+                          className="text-xs p-1 mt-1 rounded bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 truncate"
+                        >
+                          {event.title}
+                        </div>
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          +{dayEvents.length - 2} autres
+        </div>
+      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Ajouter un événement */}
+              <div className="border-t pt-4">
+                <Button onClick={() => setShowAddEvent(true)} className="w-full sm:w-auto">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Ajouter un événement
+                </Button>
+                </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Analyse concurrentielle */}
+      {showCompetitorAnalysis && (
+        <Dialog open={showCompetitorAnalysis} onOpenChange={setShowCompetitorAnalysis}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg sm:text-xl">Analyse concurrentielle</DialogTitle>
+              <DialogDescription>
+                Analysez vos concurrents et identifiez les opportunités
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Ajouter un concurrent */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                  placeholder="Nom du concurrent"
+                  value={newCompetitor.name}
+                  onChange={(e) => setNewCompetitor(prev => ({ ...prev, name: e.target.value }))}
+                />
+                <Input
+                  placeholder="URL du site"
+                  value={newCompetitor.url}
+                  onChange={(e) => setNewCompetitor(prev => ({ ...prev, url: e.target.value }))}
+                />
+                <Button onClick={() => addCompetitor()} className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter
+                </Button>
+                </div>
+
+              {/* Liste des concurrents */}
+              <div className="space-y-2">
+                {competitors.map(competitor => (
+                  <div key={competitor.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div>
+                      <div className="font-medium">{competitor.name}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">{competitor.url}</div>
+              </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeCompetitor(competitor.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                </div>
+                ))}
+              </div>
+
+              {/* Bouton d'analyse */}
+              <Button onClick={analyzeCompetitors} className="w-full">
+                <BarChart className="mr-2 h-4 w-4" />
+                Analyser les concurrents
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Notifications */}
+      {showNotifications && (
+        <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg sm:text-xl">Notifications</DialogTitle>
+              <DialogDescription>
+                Gérez vos notifications et alertes
+              </DialogDescription>
+            </DialogHeader>
+            
+                <div className="space-y-4">
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={markAllAsRead} variant="outline" size="sm" className="w-full sm:w-auto">
+                  Tout marquer comme lu
+                </Button>
+                <Button onClick={clearAllNotifications} variant="outline" size="sm" className="w-full sm:w-auto">
+                  Tout effacer
+                </Button>
+                              </div>
+
+              {/* Liste des notifications */}
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucune notification
+                            </div>
+                ) : (
+                  notifications.map(notification => (
+                    <div
+                      key={notification.id}
+                      className={`p-3 rounded-lg border ${
+                        notification.read
+                          ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              notification.type === 'error' ? 'bg-red-500' :
+                              notification.type === 'warning' ? 'bg-yellow-500' :
+                              notification.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                            }`} />
+                            <span className="font-medium text-sm">{notification.title}</span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {notification.message}
+                          </p>
+                          {notification.action && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={notification.action.onClick}
+                              className="p-0 h-auto text-xs mt-1"
+                            >
+                              {notification.action.label}
+                              </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {!notification.read && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => markNotificationAsRead(notification.id)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <CheckCircle className="h-3 w-3" />
+                              </Button>
+                          )}
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                            onClick={() => removeNotification(notification.id)}
+                            className="h-6 w-6 p-0"
+                              >
+                            <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Ajouter événement */}
+      {showAddEvent && (
+        <Dialog open={showAddEvent} onOpenChange={setShowAddEvent}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Ajouter un événement</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label>Titre</Label>
+                <Input
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Titre de l'événement"
+                />
+              </div>
+              
+              <div>
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={newEvent.date}
+                  onChange={(e) => setNewEvent(prev => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+              
+              <div>
+                <Label>Type</Label>
+                <Select value={newEvent.type} onValueChange={(value) => setNewEvent(prev => ({ ...prev, type: value as any }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="article">Article</SelectItem>
+                    <SelectItem value="review">Révision</SelectItem>
+                    <SelectItem value="publish">Publication</SelectItem>
+                    <SelectItem value="reminder">Rappel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label>Priorité</Label>
+                <Select value={newEvent.priority} onValueChange={(value) => setNewEvent(prev => ({ ...prev, priority: value as any }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Basse</SelectItem>
+                    <SelectItem value="medium">Moyenne</SelectItem>
+                    <SelectItem value="high">Haute</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button onClick={addCalendarEvent} className="flex-1">
+                  Ajouter
+                </Button>
+                <Button variant="outline" onClick={() => setShowAddEvent(false)} className="flex-1">
+                  Annuler
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Messages de statut */}
+      {error && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erreur</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {success && (
+        <Alert className="mt-4">
+          <CheckCircle className="h-4 w-4" />
+          <AlertTitle>Succès</AlertTitle>
+          <AlertDescription>{success}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Modal Planification d'article */}
+      {showScheduleDialog && (
+        <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Planifier la génération d'article</DialogTitle>
+              <DialogDescription>
+                Choisissez quand vous souhaitez que l'article soit généré automatiquement
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="schedule-title">Titre de l'article</Label>
+                <Input
+                  id="schedule-title"
+                  value={formData.title}
+                  disabled
+                  className="bg-gray-50 dark:bg-gray-800"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="schedule-date">Date de génération</Label>
+                <Input
+                  id="schedule-date"
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="schedule-time">Heure de génération</Label>
+                <Input
+                  id="schedule-time"
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                />
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800 dark:text-blue-200">
+                    <p className="font-medium mb-1">Informations de génération :</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Catégorie : {formData.category}</li>
+                      <li>• Nombre de mots : {formData.wordCount}</li>
+                      <li>• Ton : {languageTones.find(t => t.value === formData.languageTone)?.label}</li>
+                      {selectedTemplate && (
+                        <li>• Template : {articleTemplates.find(t => t.id === selectedTemplate)?.name}</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button onClick={confirmScheduleGeneration} className="flex-1">
+                  <CalendarPlus className="mr-2 h-4 w-4" />
+                  Planifier
+                </Button>
+                <Button variant="outline" onClick={() => setShowScheduleDialog(false)} className="flex-1">
+                  Annuler
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+} 

@@ -1,0 +1,66 @@
+/* Animations for KheopScope floating elements */
+
+/* Falling animation */
+@keyframes fall {
+  from { transform: translateY(-100px); }
+  to { transform: translateY(calc(100vh + 100px)); }
+}
+
+/* Floating horizontal animation */
+@keyframes float-horizontal {
+  0% { transform: translateX(-100px); }
+  100% { transform: translateX(calc(100vw + 100px)); }
+}
+
+/* Floating vertical animation */
+@keyframes float-vertical {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+/* Orbit animation */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(80px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(80px) rotate(-360deg); }
+}
+
+/* Zigzag animation */
+@keyframes zigzag {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(10px, -10px); }
+  50% { transform: translate(0, -20px); }
+  75% { transform: translate(-10px, -10px); }
+}
+
+/* Floating balls */
+.floating-ball {
+  position: absolute;
+  border-radius: 9999px;
+}
+
+/* Falling balls */
+.ball-fall-1 { animation: fall 8s linear 0s infinite; }
+.ball-fall-2 { animation: fall 10s linear 2s infinite; }
+.ball-fall-3 { animation: fall 12s linear 4s infinite; }
+.ball-fall-4 { animation: fall 9s linear 1s infinite; }
+.ball-fall-5 { animation: fall 11s linear 3s infinite; }
+
+/* Horizontal floating */
+.ball-float-h-1 { animation: float-horizontal 15s linear 0s infinite; }
+.ball-float-h-2 { animation: float-horizontal 18s linear 5s infinite; }
+.ball-float-h-3 { animation: float-horizontal 20s linear 2s infinite; }
+.ball-float-h-4 { animation: float-horizontal 16s linear 7s infinite; }
+
+/* Vertical floating */
+.ball-float-v-1 { animation: float-vertical 12s ease-in-out 0s infinite; }
+.ball-float-v-2 { animation: float-vertical 14s ease-in-out 3s infinite; }
+.ball-float-v-3 { animation: float-vertical 13s ease-in-out 6s infinite; }
+.ball-float-v-4 { animation: float-vertical 11s ease-in-out 1s infinite; }
+
+/* Orbit */
+.ball-orbit-1 { animation: orbit 20s linear 0s infinite; }
+.ball-orbit-2 { animation: orbit 25s linear 5s infinite; }
+
+/* Zigzag */
+.ball-zigzag-1 { animation: zigzag 8s ease-in-out 0s infinite; }
+.ball-zigzag-2 { animation: zigzag 10s ease-in-out 2s infinite; }

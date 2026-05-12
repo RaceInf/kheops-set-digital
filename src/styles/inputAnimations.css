@@ -1,0 +1,27 @@
+/* Fichier de style pour l'animation de couleur uniforme des champs de saisie */
+
+/* Mise à jour pour ne plus afficher le box-shadow par défaut */
+.inputColorAnimation.input-error:focus,
+.inputColorAnimation.input-success:focus,
+.inputColorAnimation.input-error:focus-visible,
+.inputColorAnimation.input-success:focus-visible {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.inputColorAnimation.input-error {
+  border-color: #dc3545;
+}
+
+.inputColorAnimation.input-success {
+  border-color: #28a745;
+}
+
+/* Ajout d'une règle de focus bleu pour les champs en erreur */
+.inputColorAnimation.input-error:focus,
+.inputColorAnimation.input-error:focus-visible {
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25) !important;
+  outline: none !important;
+}
+
+/* Fin des modifications */

@@ -1,0 +1,42 @@
+/* Engagement Chart */
+.engagement-bar {
+  width: var(--bar-width, 0%);
+  transition: width 700ms ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.engagement-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.1), transparent);
+  pointer-events: none;
+}
+
+/* ROI Performance Chart */
+.roi-bar {
+  transition: width 700ms ease-out;
+  height: 0.5rem;
+}
+
+/* Gradient backgrounds */
+.bg-tiktok {
+  background: linear-gradient(to right, #25F4EE, #25F4EEB3);
+}
+
+.bg-instagram {
+  background: linear-gradient(to right, #E1306C, #F77737);
+}
+
+/* Bar container */
+.bar-container {
+  height: 0.5rem;
+  background-color: rgb(243, 244, 246);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.dark .bar-container {
+  background-color: rgb(55, 65, 81);
+}
